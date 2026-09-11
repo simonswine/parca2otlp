@@ -1,0 +1,5 @@
+defaultBaseImage: gcr.io/distroless/static-debian12:nonroot
+
+builds:
+  - id: parca2otlp
+    dir: ./cmd/parca2otlp

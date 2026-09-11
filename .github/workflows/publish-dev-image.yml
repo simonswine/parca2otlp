@@ -1,0 +1,21 @@
+name: Publish development image
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ko-build/setup-ko@v0.8
+
+      - name: Publish development image
+        run: ko build --bare --tags=dev --tags="${GITHUB_SHA}" ./cmd/parca2otlp
