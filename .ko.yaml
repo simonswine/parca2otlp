@@ -1,4 +1,4 @@
-defaultBaseImage: gcr.io/distroless/static-debian12:nonroot
+defaultBaseImage: gcr.io/distroless/static-debian12:nonroot-debug
 
 builds:
   - id: parca2otlp
