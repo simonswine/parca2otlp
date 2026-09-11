@@ -5,17 +5,26 @@ RPC batch as a binary OTLP Profiles `ExportProfilesServiceRequest` protobuf.
 
 The service supports the Parca v1 streaming `Write` protocol, including its
 stacktrace handshake, and v2 inline-stack `WriteArrow` payloads. Files are
-append-only and atomically published as `*.otlp.pb`.
+atomically published as `*.otlp.pb`.
 
 ## Run
 
 ```sh
-go run ./cmd/parca2otlp --storage-path ./data
+go run ./cmd/parca2otlp --storage-path ./data --max-storage-size 256MiB
 ```
 
 The server listens on `:7070` by default. Configure Parca Agent's ProfileStore
 endpoint to point at this server. The maximum inbound gRPC message size is 64
 MiB and can be adjusted with `--max-recv-message-size`.
+
+## Retention
+
+Managed profile files are capped at 256 MiB by default. Before writing a new
+batch, `parca2otlp` deletes the oldest `*.otlp.pb` files until the new batch
+fits. The same cleanup runs at startup. A batch larger than the configured
+limit is rejected without deleting existing data. Set `--max-storage-size 0`
+to disable retention. The storage directory must be used exclusively by this
+service; unrelated files are ignored.
 
 ## Files
 

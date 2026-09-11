@@ -3,6 +3,7 @@ package profilestore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -43,7 +44,7 @@ func (s *Service) WriteArrow(ctx context.Context, request *profilestorepb.WriteA
 		return &profilestorepb.WriteArrowResponse{}, nil
 	}
 	if _, err := s.store.Save(ctx, export); err != nil {
-		return nil, status.Errorf(codes.Internal, "persist OTLP profiles: %v", err)
+		return nil, storageError(err)
 	}
 	return &profilestorepb.WriteArrowResponse{}, nil
 }
@@ -100,7 +101,7 @@ func (s *Service) Write(stream profilestoregrpc.ProfileStoreService_WriteServer)
 	}
 	if len(export.GetResourceProfiles()) > 0 {
 		if _, err := s.store.Save(stream.Context(), export); err != nil {
-			return status.Errorf(codes.Internal, "persist OTLP profiles: %v", err)
+			return storageError(err)
 		}
 	}
 	return nil
@@ -152,4 +153,11 @@ func invalidArgument(err error) error {
 		return status.Error(codes.InvalidArgument, "unexpected end of stream")
 	}
 	return status.Errorf(codes.InvalidArgument, "%v", err)
+}
+
+func storageError(err error) error {
+	if errors.Is(err, storage.ErrBatchTooLarge) {
+		return status.Errorf(codes.ResourceExhausted, "persist OTLP profiles: %v", err)
+	}
+	return status.Errorf(codes.Internal, "persist OTLP profiles: %v", err)
 }

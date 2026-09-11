@@ -23,10 +23,15 @@ import (
 func main() {
 	listenAddress := flag.String("listen-address", ":7070", "gRPC listen address")
 	storagePath := flag.String("storage-path", "", "directory for OTLP Profiles protobuf files (required)")
+	maxStorageSize := flag.String("max-storage-size", "256MiB", "maximum managed OTLP storage; 0 disables retention")
 	maxReceiveSize := flag.Int("max-recv-message-size", 64<<20, "maximum gRPC request size in bytes")
 	flag.Parse()
 
-	store, err := storage.New(*storagePath)
+	storageLimit, err := storage.ParseSize(*maxStorageSize)
+	if err != nil {
+		log.Fatal(err)
+	}
+	store, err := storage.New(*storagePath, storageLimit)
 	if err != nil {
 		log.Fatal(err)
 	}
