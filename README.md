@@ -49,3 +49,14 @@ attributes; Parca-only metadata is preserved under `parca.*` attributes.
 
 OTLP Profiles remains alpha, so this project pins the generated
 `v1development` protobuf API rather than claiming a stable on-disk schema.
+
+## Dump Profiles
+
+Inspect a stored profile batch with the built-in CLI. It renders readable
+protobuf text by default, or indented JSON with `--format=json`:
+
+```sh
+parca2otlp dump ./data/20260101T000000.000000000Z-example.otlp.pb
+parca2otlp dump --format=json ./data/*.otlp.pb
+cat ./data/profile.otlp.pb | parca2otlp dump -
+```
