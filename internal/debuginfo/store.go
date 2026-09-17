@@ -25,6 +25,8 @@ var (
 	ErrAlreadyExists = errors.New("debug artifact already exists")
 )
 
+const uploadInProgressReason = "A previous upload is still in-progress and not stale yet (only stale uploads can be retried)."
+
 type Store struct {
 	root       string
 	maxSize    int64
@@ -89,7 +91,7 @@ func (s *Store) ShouldUpload(buildID string, typ debuginfopb.DebuginfoType, forc
 	}
 	if active, ok := s.activeSession(buildID, typ); ok && !force {
 		if time.Since(active.CreatedAt) < s.staleAfter {
-			return false, "debug upload is in progress", nil
+			return false, uploadInProgressReason, nil
 		}
 		if err := s.removeSession(active); err != nil {
 			return false, "", err
@@ -152,8 +154,19 @@ func (s *Store) Upload(id, buildID string, typ debuginfopb.DebuginfoType, write 
 		return session{}, fmt.Errorf("debug upload already received")
 	}
 	path := s.tempPath(current.ID)
-	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	s.mu.Unlock()
+	completed := false
+	defer func() {
+		if completed {
+			return
+		}
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		if active, ok := s.sessions[current.ID]; ok {
+			_ = s.removeSession(active)
+		}
+	}()
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return session{}, fmt.Errorf("open debug upload: %w", err)
 	}
@@ -192,6 +205,7 @@ func (s *Store) Upload(id, buildID string, typ debuginfopb.DebuginfoType, write 
 		return session{}, err
 	}
 	s.sessions[id] = current
+	completed = true
 	return current, nil
 }
 

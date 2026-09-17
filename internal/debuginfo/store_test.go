@@ -2,6 +2,7 @@ package debuginfo
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -57,6 +58,24 @@ func TestUploadRejectsMetadataAndSizeMismatch(t *testing.T) {
 	}
 	if _, err := store.Upload(session.ID, "build", session.Type, func(writer io.Writer) error { _, err := writer.Write([]byte("too large")); return err }); !errors.Is(err, ErrTooLarge) {
 		t.Fatalf("Upload error = %v, want ErrTooLarge", err)
+	}
+}
+
+func TestFailedUploadCanBeRetriedImmediately(t *testing.T) {
+	store, err := New(t.TempDir(), 10, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	session, err := store.Initiate("build", debuginfopb.BuildIDType_BUILD_ID_TYPE_GNU, debuginfopb.DebuginfoType_DEBUGINFO_TYPE_DEBUGINFO_UNSPECIFIED, "hash", 4, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Upload(session.ID, "build", session.Type, func(io.Writer) error { return context.DeadlineExceeded }); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Upload error = %v, want context deadline exceeded", err)
+	}
+	should, _, err := store.ShouldUpload("build", session.Type, false)
+	if err != nil || !should {
+		t.Fatalf("ShouldUpload = %t, %v; want true, nil", should, err)
 	}
 }
 
